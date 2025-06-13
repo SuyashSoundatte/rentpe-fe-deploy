@@ -33,16 +33,21 @@ jobs:
 
       - name: Clean R2 bucket before upload
         run: |
-          wrangler r2 object list rentpe-admin --json \
-          | jq -r '.[].key' \
-          | xargs -r -I {} wrangler r2 object delete rentpe-admin --key "{}"
+          # List all objects and delete them one by one
+          wrangler r2 object list rentpe-admin --prefix "" --json | \
+          jq -r '.objects[] | .key' | \
+          xargs -I {} wrangler r2 object delete rentpe-admin "{}"
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
       - name: Upload latest dist to R2
         run: |
-          wrangler r2 object put rentpe-admin --file dist --recursive
+          # Upload each file in dist directory individually
+          find dist -type f | while read file; do
+            key="${file#dist/}"
+            wrangler r2 object put "rentpe-admin/$key" --file "$file"
+          done
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
