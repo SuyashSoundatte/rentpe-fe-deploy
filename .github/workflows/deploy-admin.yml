@@ -43,10 +43,24 @@ jobs:
 
       - name: Upload latest dist to R2
         run: |
-          # Upload each file in dist directory individually
-          find dist -type f | while read file; do
-            key="${file#dist/}"
+          # Verify dist directory exists and contains files
+          echo "Contents of dist directory:"
+          ls -la dist/
+    
+          # Upload each file individually with proper paths
+          cd dist
+          find . -type f | while read file; do
+            echo "Uploading: $file"
+            # Remove leading './' from path
+            key="${file#./}"
             wrangler r2 object put "rentpe-admin/$key" --file "$file"
+            
+            # Verify upload succeeded
+            if [ $? -ne 0 ]; then
+              echo "❌ Failed to upload $file"
+              exit 1
+            fi
+            echo "✅ Uploaded $file"
           done
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
